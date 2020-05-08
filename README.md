@@ -10,8 +10,12 @@ node bch-zakat.js <command> --network <mainnet|testnet> --campaignerPkh <string>
 
 Commands:
 
-`launch-campaign`
-`pledge --wif`
-`accept <pledgedAmount> <pledgerPkh> --pledgeTxId --pledgeTxVout --campaignTxId --campaignTxVout --campaignCurrentTotal --ledger`
-`claim --campaignTxId --campaignTxVout --campaignCurrentTotal --ledger`
-`reclaim  --campaignTxId --campaignTxVout --campaignCurrentTotal --ledger`
+`launch-campaign` returns a p2sh output to fund a new campaign
+
+`pledge --wif` returns a p2sh output to pledge to a campaign
+
+`accept <pledgedAmount> <pledgerPkh> --pledgeTxId --pledgeTxVout --campaignTxId --campaignTxVout --campaignCurrentTotal --ledger` returns a raw transaction to unlock a pledge and lock into a campaign
+
+`claim --campaignTxId --campaignTxVout --campaignCurrentTotal --ledger` returns a raw transaction to unlock a campaign after the goal is met
+
+`reclaim  --campaignTxId --campaignTxVout --campaignCurrentTotal --ledger` returns a raw transaction to unlock a campaign after the goal has not been met. 
