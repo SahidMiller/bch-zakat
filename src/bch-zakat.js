@@ -3,8 +3,6 @@ const { Contract, Sig, HashType } = require('cashscript')
 const cramer = require('cramer-bch')
 const yargs = require("yargs")
 
-//Do we need to pass just public key or private key for signing?
-//Return the preimage to sign, God willing. SIGHASH_ALL | SIGHASH_ANYONECANPAY, God willing.
 let bitbox = null;
 yargs
 	.option('campaignerPkh', {
@@ -41,7 +39,7 @@ yargs
 		type: 'boolean'
 	})
 	.option('wif', {
-		describe: 'private key to sign the transaction, God willing', //Give sighash for them to sign, then continue, God willing.
+		describe: 'private key to sign the transaction, God willing', 
 		type: 'string',
 	})
 	.middleware((argv) => {
@@ -72,8 +70,7 @@ yargs
 			pledgeContract: Contract.compile(__dirname + '/cashscripts/donator.cash', argv.network),
 			campaignScriptRaw,
 		};
-
-		//Default the ledger whenever no ledger is provided but passed the required flags of the calling command (aka. it is ok with an empty ledger, God willing)
+		
 		const { script, scriptHash, p2shOutput } = getCampaign({ ...args, ledger: args.ledger || Buffer.alloc(0) });
 
 		return {
@@ -85,18 +82,14 @@ yargs
 	.command({
 		command: 'launch-campaign',
 		describe: 'Launch a new campaign',
-
-		//Option for ledger to be initialized with some state, God willing.
 		builder: (yargs) => yargs.option('ledger', {
 			describe: 'initialized ledger for initial funds to be redeemed, God willing',
-			type: 'string', //bytes
+			type: 'string', 
 			coerce: (arg) => Buffer.from(arg, 'hex'),
 		}),
-
-		//Broadcast or spit out the required information to broadcast, God willing.
-		//Return an address with an empty amount, God willing.
+		
 		handler: (argv) => {
-			//TODO GW: Can look for utxos that match, God willing, display those to use in other methods, God willing.
+			
 			console.log("\n\nInitial campaign pubkeyScript:\n" + argv.currentCampaignP2SHOutput);
 		}
 	})
@@ -109,7 +102,6 @@ yargs
 			const pledgeScript = bitbox.Script.encode(pledgeInstance.redeemScript);
 			const pledgeScriptHash = bitbox.Crypto.hash160(pledgeScript);
 
-			//To start, just fund this contract, God willing. Any number to outputs like these, God willing.
 			console.log("\n\nExpected pledge pubkeyScript:\n" + bitbox.Script.encodeP2SHOutput(pledgeScriptHash).toString('hex'));
 		}
 	})
@@ -117,7 +109,7 @@ yargs
 		command: 'accept <pledgedAmount> <pledgerPkh>',
 		describe: 'Accept pledge into a campaign',
 		builder: (yargs) => {
-			//Pledge inputs
+			
 			return yargs.positional('pledgedAmount', {
 				describe: 'the amount being pledged to the campaign and added to the ledger, God willing',
 				type: 'number',
@@ -130,8 +122,6 @@ yargs
 				required: true,
 				coerce: (arg) => Buffer.from(arg, 'hex')
 			})
-
-			//Pledge inputs
 			.option('pledgeTxId', {
 				alias: 'pid',
 				describe: 'the txid of the pledge contract to redeem',
@@ -145,9 +135,6 @@ yargs
 				type: 'number',
 				required: true
 			})
-
-
-			//Campaign inputs
 			.option('campaignTxId', {
 				alias: 'cid',
 				describe: 'the campaign txid to accept pledge into',
@@ -166,16 +153,10 @@ yargs
 				describe: 'current amount in campaign script to calculate outputs manually',
 				type: 'number',
 				required: true
-			})
-
-			//We can use the ledger to find utxos locked specifically to this target address, God willing.
-			//Otherwise, without this we want just the script itself without a ledger state, God willing.
-			//Maybe another command to get the hash of a ledger + script or to pass the ledger hash here, God willing.
-			//Yup, donators could use the raw contract script OR one with state. state is removed for the most part, only new state is checked, The God is most aware and uptodate on all things.
-			//We need the current ledger (not hash) to make updates to it on accepting pledge, God willing. So if not provided, won't use default like launch campaign, God willing.
+			})			
 			.option('ledger', {
 				describe: 'current ledger to pass the contract',
-				type: 'string', //bytes
+				type: 'string', 
 				coerce: (arg) => Buffer.from(arg, 'hex'),
 				required: true
 			})
@@ -198,7 +179,7 @@ yargs
 			builder.addInput(campaignUtxo.txid, campaignUtxo.vout, 0xfffffffe);
 			builder.addOutput(output.to, output.amount);
 
-			//Sign the sighash of the first input after building incomlete, God willing.
+			
 			const tx = builder.transaction.buildIncomplete();
 			
 			const pledgeSignature = signTx(tx, argv.keypair, 0, pledgeScript, pledgedUtxo.satoshis, tx.constructor.SIGHASH_ALL | tx.constructor.SIGHASH_ANYONECANPAY);
@@ -216,9 +197,9 @@ yargs
 				bitbox.Script.encodeNumber(campaignUtxo.satoshis)
 			];
 
-			//If exists, probably needs selector as well, God willing. To choose methods, God willing.
-			//If doesn't exist, don't exactly need this as an input, God willing.
-			//Probably don't have to parameterize preimage twice unless transaction changed... TGIMA. God willing!
+			
+			
+			
 			const campaignSignature = signTx(tx, argv.keypair, 1, argv.currentCampaignScript, campaignUtxo.satoshis);
 			const campaignPreimageParams = parameterizePreimage(campaignSignature.preimage, argv.currentCampaignScript);
 			const acceptActionByte = Buffer.from([0], 'hex');
@@ -231,7 +212,7 @@ yargs
 				...campaignPreimageParams, 
 				argv.ledger, 
 				bitbox.Script.encodeNumber(output.amount),
-				argv.pledgerPkh //Very cool, so this is where both contracts agree, God willing.
+				argv.pledgerPkh 
 			];
 
 			builder.addInputScripts([
@@ -266,18 +247,16 @@ yargs
 				alias: 'ctotal',
 				describe: 'current amount in campaign script to calculate outputs manually',
 				type: 'number',
-				required: true, //unless fetched, God willing.
+				required: true, 
 			})
-
-			//Need the hash in order to properly pass in redeem script but do not need to pass the actual ledger into contract, God willing.
 			.option('ledger', {
 				describe: 'current ledger to pass the contract',
-				type: 'string', //bytes
+				type: 'string', 
 				coerce: (arg) => Buffer.from(arg, 'hex')
 			})
 			.option('ledger-hash', {
 				describe: 'current ledger hash to pass the contract',
-				type: 'string', //bytes
+				type: 'string', 
 				coerce: (arg) => Buffer.from(arg, 'hex')
 			})
 		},
@@ -291,8 +270,7 @@ yargs
 
 			builder.addInput(campaignUtxo.txid, campaignUtxo.vout, 0xfffffffe);
 			builder.addOutput(output.to, output.amount);
-
-			//Sign the sighash of the first input after building incomlete, God willing.
+			
 			const tx = builder.transaction.buildIncomplete();
 
 			const { preimage, signature } = signTx(tx, argv.keypair, 0, argv.currentCampaignScript, campaignUtxo.satoshis);
@@ -334,12 +312,11 @@ yargs
 				alias: 'ctotal',
 				describe: 'current amount in campaign script to calculate outputs manually',
 				type: 'number',
-				required: true, //unless fetched, God willing.
+				required: true, 
 			})
-
 			.option('ledger', {
 				describe: 'current ledger to pass the contract',
-				type: 'string', //bytes
+				type: 'string', 
 				required: true,
 				coerce: (arg) => Buffer.from(arg, 'hex'),
 			})
@@ -357,8 +334,8 @@ yargs
 			const expectedCampaignLedger = Buffer.alloc(lastRecipientStartIndex);
 			const lastPledgeAmount = readUInt64LE(ledger, lastRecipientStartIndex);
 			const lastPledgePkh = Buffer.alloc(20);
-			ledger.copy(expectedCampaignLedger, 0, 0, lastRecipientStartIndex); //First 8 bytes of last 28;
-			ledger.copy(lastPledgePkh, 0, lastRecipientStartIndex + 8); //Last 20bytes
+			ledger.copy(expectedCampaignLedger, 0, 0, lastRecipientStartIndex); 
+			ledger.copy(lastPledgePkh, 0, lastRecipientStartIndex + 8); 
 
 			const campaignUtxo = { txid: argv.cid, vout: argv.cout, satoshis: argv.ctotal };
 
@@ -372,8 +349,7 @@ yargs
 			builder.addInput(campaignUtxo.txid, campaignUtxo.vout, 0xfffffffe);
 			builder.addOutput(outputs[0].to, outputs[0].amount);
 			builder.addOutput(outputs[1].to, outputs[1].amount);
-
-			//Sign the sighash of the first input after building incomlete, God willing.
+			
 			const tx = builder.transaction.buildIncomplete();
 			builder.setLockTime(argv.goalBlock);
 
@@ -389,7 +365,7 @@ yargs
 				claimsActionByte,
 				...preimageParams,
 
-				expectedCampaignLedger, //Without the last pledger, God willing.
+				expectedCampaignLedger, 
 				bitbox.Script.encodeNumber(outputs[0].amount),
 				lastPledgePkh
 			];
@@ -413,8 +389,6 @@ yargs
 		console.log(output);
 	});
 
-//0x01 = SIGHASH_ALL, 0x80 = SIGHASH_ANYONECANPAY
-//0 = ECDSA
 function signTx(tx, keypair, input, script, amount, sighashType = 0x01 | 0x80, sigType = 0) { 
 	const hashtype = sighashType | tx.constructor.SIGHASH_BITCOINCASHBIP143;
 	
@@ -442,15 +416,12 @@ function getCampaign({ campaignScriptRaw, campaignerPkh, goalAmount, goalBlock, 
 	}
 
 	const campaignScript = Buffer.concat([
-		Buffer.from([0x14], 'hex'), //OP_PUSHDATA
-		ledgerHash && ledgerHash.length ? ledgerHash : hashedLedger, //initialized ledger
-		Buffer.from([0x75], 'hex'), //OP_DROP
+		Buffer.from([0x14], 'hex'), 
+		ledgerHash && ledgerHash.length ? ledgerHash : hashedLedger, 
+		Buffer.from([0x75], 'hex'), 
 		campaignScriptRaw
 	]);
-
-	//Get an address to output the new campaign, God willing.
-	//That is the address to redeem pledges by, God willing.
-	//To start, just fund this contract, God willing. Just want one utxo with this output, God willing.
+	
 	const campaignScriptHash = bitbox.Crypto.hash160(campaignScript);
 
 	return {
@@ -459,7 +430,6 @@ function getCampaign({ campaignScriptRaw, campaignerPkh, goalAmount, goalBlock, 
 		p2shOutput: bitbox.Script.encodeP2SHOutput(campaignScriptHash),
 	};
 }
-
 
 function getPreimageSize(script) {
     const scriptSize = script.byteLength;
@@ -473,7 +443,6 @@ function getInputSize(script) {
     return 32 + 4 + varIntSize + scriptSize + 4;
 }
 
-// https://github.com/feross/buffer/blob/master/index.js#L1127
 function verifuint (value, max) {
   if (typeof value !== 'number') throw new Error('cannot write a non-number as a number')
   if (value < 0) throw new Error('specified a negative value for writing an unsigned value')
@@ -504,11 +473,11 @@ function parameterizePreimageDonation(preimage, script) {
 	const scriptVarIntLen = (script.byteLength > 252 ? 3 : 1);
 	
 	const encodedPreimage = [
-		Buffer.alloc(104 + scriptVarIntLen + script.byteLength, 0), //preimageBeforeScript, God willing.
-		Buffer.alloc(8, 0), //Value placeholder
-		Buffer.alloc(4, 0), //nSequence placeholder
-		Buffer.alloc(32, 0), //hashOutput placeholder (used, God willing)
-		Buffer.alloc(8, 0) //tail placeholder
+		Buffer.alloc(104 + scriptVarIntLen + script.byteLength, 0), 
+		Buffer.alloc(8, 0), 
+		Buffer.alloc(4, 0), 
+		Buffer.alloc(32, 0), 
+		Buffer.alloc(8, 0) 
 	]
 
 	const startValueIndex = 104 + scriptVarIntLen + script.byteLength;
@@ -526,18 +495,18 @@ function parameterizePreimageDonation(preimage, script) {
 	return encodedPreimage;
 }
 
-//Can work this a bit better to remove things we don't need, God willing.
+
 function parameterizePreimage(preimage, script) {
 	const scriptVarIntLen = (script.byteLength > 252 ? 3 : 1);
 	
 	const encodedPreimage = [
-		Buffer.alloc(104 + scriptVarIntLen, 0), //preimageBeforeScript, God willing.
+		Buffer.alloc(104 + scriptVarIntLen, 0), 
 		script,
-		Buffer.alloc(8, 0), //Value placeholder
-		Buffer.alloc(4, 0), //nSequence placeholder
-		Buffer.alloc(32, 0), //hashOutput placeholder (used, God willing)
-		Buffer.alloc(4, 0), //locktime placeholder
-		Buffer.alloc(4, 0) //sighash placeholder
+		Buffer.alloc(8, 0), 
+		Buffer.alloc(4, 0), 
+		Buffer.alloc(32, 0), 
+		Buffer.alloc(4, 0), 
+		Buffer.alloc(4, 0) 
 	]
 
 	const startCovenantScriptIndex = 104 + scriptVarIntLen;
