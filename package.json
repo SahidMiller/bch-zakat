@@ -1,0 +1,17 @@
+{
+  "name": "bch-zakat",
+  "version": "0.0.1",
+  "description": "Utilities for non-custodial crowdfunding",
+  "main": "./src/bch-zakat.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bitbox-sdk": "^8.11.2",
+    "cashscript": "^0.3.3",
+    "cramer-bch": "git+https://github.com/jcramer/bitcoincashjs-lib.git",
+    "yargs": "^15.3.1"
+  }
+}

@@ -1,0 +1,51 @@
+//Lock funds so it can only be unlocked if it's locked in a campaign contract with a ledger that includes our pkh and amount pledged as the last line-item, God willing.
+//All line items in the campaign contract can be redeemed by their owner if the campaign contract doesn't have a value that meets or exceeds the goal by a certain blocktime. 
+contract CampaignDonation(bytes20 pkhPledger, bytes20 pkhCampaigner, bytes20 targetCampaignScriptHash) {
+
+	function redeem(pubkey publickey, sig signature, 
+		bytes preimageBeforeValue, bytes8 value, bytes4 nSequence, bytes32 preimageHashOutputs, bytes8 preimageTail,
+		bytes campaignScript, bytes ledger, int currentCampaignTotal
+	) {
+		require(
+			checkSig(
+				signature, 
+				publickey
+			)
+		);
+
+		if (hash160(publickey) != pkhPledger) {
+
+			require(hash160(publickey) == pkhCampaigner);
+
+			//Version: 4bits, hPhSo: 100bits, prevoutScript: (scriptLengthLength + scriptLength), Value: 8bits, nSequence: 4bits
+			//Check preimage manually, God willing. Same signature minus a few bytes.
+			require(
+				checkDataSig(
+					datasig(bytes(signature.split(signature.length - 1)[0])),
+					sha256(preimageBeforeValue + value + nSequence + preimageHashOutputs + preimageTail), 
+					publickey
+				)
+			);
+
+			require(hash160(campaignScript) == targetCampaignScriptHash);
+			require(ledger.length % 28 == 0);
+			
+			//next output should be: OP_PUSH + hash of expected ledger (including our line item) + OP_DROP + rest of campaign script, God willing.
+			bytes opPush = 0x14;
+			bytes opDrop = 0x75;
+			bytes20 expectedOutputScript = hash160(opPush + hash160(ledger + value + pkhPledger) + opDrop + campaignScript);
+
+			require(currentCampaignTotal > 0);
+
+			//Possibly require a brief time to pull money back in case we don't trust them? or require our own signature, God willing? TGIMA. then we'd have to wait a while.
+			require(
+				preimageHashOutputs == hash256(
+					new OutputP2SH(
+						bytes8(currentCampaignTotal + int(bytes(value))), 
+						expectedOutputScript
+					)
+				)
+			);
+		}
+	}
+}

@@ -1,0 +1,92 @@
+//This contract restrict spending until the specified blockHeigh, God willing. 
+//If the campaign goal is reached, the funds can be locked in a p2pkh output matching the pkh of the campaigner, God willing. (TODO: Could instead spend to any output if signed by the campaigner, God willing)
+//If the campaign goal is not reached, the funds can be redeemed individually, in LIFO order (last in, first out), based on the ledger, God willing. The change is put in similar contract minus the last line item, God willing.
+contract FundCampaign(bytes20 pkhCampaigner, int goal, int blockHeight) {
+
+	function interactions(pubkey publickey, sig signature, bytes1 actionByte,
+		bytes preimageBeforeScript, bytes script, bytes8 value, bytes4 nSequence, bytes32 preimageHashOutputs, bytes4 preimageLocktime, bytes8 preimageTail,
+ 		bytes ledger, int updatedValue, bytes20 pledgerPkh
+ 	) {
+		require(checkSig(signature, publickey));
+
+		require(
+			checkDataSig(
+				datasig(bytes(signature.split(signature.length - 1)[0])),
+				sha256(preimageBeforeScript + script + value + nSequence + preimageHashOutputs + preimageLocktime + preimageTail), 
+				publickey
+			)
+		);
+
+		bytes opPush = 0x14;
+		bytes opDrop = 0x75;
+		
+		require(ledger.length % 28 == 0);
+
+		if (actionByte == 0x00) {
+
+			//Anyone could technically wrap it and only pkhCampaigner or pledging can redeem, God willing. But will restrict for now, God willing.
+			//Also pledger could require it instead, but this is so no one DDOS on the contract, God willing.
+			require(hash160(publickey) == pkhCampaigner);
+			require(script.split(22)[0] == (opPush + hash160(ledger) + opDrop));
+
+			int added = updatedValue - int(bytes(value));
+			require(added > 0);
+			
+			//Simply append to the ledger, God willing, and update the campaign value.
+			require(
+				preimageHashOutputs == hash256(
+					new OutputP2SH(
+						bytes8(updatedValue), 
+						hash160(
+							opPush + 
+							hash160(
+								ledger + 
+								bytes8(added) + 
+								pledgerPkh
+							) + 
+							opDrop + 
+							script.split(22)[1]
+						)
+					)
+				)
+			);
+
+		} else {
+
+			require(int(bytes(preimageLocktime)) >= blockHeight);
+
+			//Distribute funds to campaigner, God willing.
+			if (int(bytes(value)) >= goal) {
+
+				//Anyone could technically unwrap it and only pkhCampaigner can redeem, God willing. But will restrict for now, God willing.
+				require(hash160(publickey) == pkhCampaigner);
+				require(hash256(new OutputP2PKH(value, pkhCampaigner)) == preimageHashOutputs);
+
+			//Distribute funds to last pledger, God willing.
+			} else {
+
+				int removing = int(bytes(value)) - updatedValue;
+				require(removing > 0);
+
+				//When redeeming, remove the pledger from the ledger, God willing.
+				require(script.split(22)[0] == (opPush + hash160(ledger + bytes8(removing) + pledgerPkh) + opDrop));
+
+				//New P2SH contract minus the amount and a ledger minus the reclaimer, God willing. Also, new P2PKH for the last pledger, God willing. (TODO: two at a time, God willing.)
+				require(
+					preimageHashOutputs == hash256(
+						new OutputP2SH(
+							bytes8(updatedValue), 
+							hash160(
+								opPush + 
+								hash160(ledger) + 
+								opDrop + 
+								script.split(22)[1]
+							)
+						) +
+						new OutputP2PKH(bytes8(removing), pledgerPkh)
+					)
+				);
+			}
+		}
+	}
+}
